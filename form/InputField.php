@@ -14,6 +14,7 @@ class InputField extends BaseField
     public const TYPE_TEXT = 'text';
     public const TYPE_PASSWORD = 'password';
     public const TYPE_NUMBER = 'number';
+    public const TYPE_FILES = 'file';
     public string $type;
     
     /**
@@ -31,6 +32,12 @@ class InputField extends BaseField
     public function passwordField()
     {
         $this->type = self::TYPE_PASSWORD;
+        return $this;
+    }
+
+    public function filesField()
+    {
+        $this->type = self::TYPE_FILES;
         return $this;
     }
 

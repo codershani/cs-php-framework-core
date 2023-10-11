@@ -79,10 +79,6 @@ abstract class Model
                     $statement->bindValue(":$uniqueAttr", $value);
                     $statement->execute();
                     $record = $statement->fetchObject();
-                    // echo '<pre>';
-                    // var_dump($record);
-                    // echo '</pre>';
-                    // exit;
 
                     if($record) {
                         $this->addErrorForRule($attribute, self::RULE_UNIQUE, ['field' => $this->getLabel($attribute)]);
