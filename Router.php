@@ -14,7 +14,7 @@ class Router
 {
     public Request $request;
     public Response $response;
-    protected array $routes = [];
+    protected array $routeMap = [];
 
     /**
      * Summary of __construct
@@ -35,7 +35,7 @@ class Router
      */
     public function get($path, $callback) 
     {
-        $this->routes['get'][$path] = $callback;
+        $this->routeMap['get'][$path] = $callback;
     }
 
     /**
@@ -46,7 +46,59 @@ class Router
      */
     public function post($path, $callback) 
     {
-        $this->routes['post'][$path] = $callback;
+        $this->routeMap['post'][$path] = $callback;
+    }
+
+    public function getRouteMap($method) {
+        return $this->routeMap[$method] ?? [];
+        ;
+    }
+
+    public function getCallback() {
+        $method = $this->request->getMethod();
+        $url = $this->request->getUrl();
+
+        // trim slashes
+        $url = trim($url, '/');
+
+        // Set all routes for current request method
+        $routes = $this->getRouteMap($method);
+
+        $routeParams = false;
+
+        // Start iterating registered routes
+        foreach($routes as $route => $callback) {
+            /// Trim slashes
+            $route = trim($route, '/');
+            $routeNames = [];
+
+            if (!$route) {
+                continue;
+            }
+
+            // Find all route names from the routes and save in $routeNames
+            if (preg_match_all('/\{(\w+)(:[^}]+)?}/', $route, $matches)) {
+                $routeNames = $matches[1];
+            }
+
+            // Convert route name into regex pattern
+            $routeRegex = "@^" . preg_replace_callback('/\{\w+(:([^}]+))?}/', fn($m) => isset($m[2]) ? "({$m[2]})" : '(\w+)', $route) . "$@";
+
+            // Test and match current route against $routeRegex
+            if (preg_match_all($routeRegex, $url, $valueMatches)) {
+                $values = [];
+                for($i = 1; $i < count($valueMatches); $i++) {
+                    $values[] = $valueMatches[$i][0];
+                }
+                $routeParams = array_combine($routeNames, $values);
+
+                $this->request->setRouteParams($routeParams);
+                return $callback;
+            }
+        }
+        
+        return false;
+
     }
 
     /**
@@ -55,14 +107,17 @@ class Router
      */
     public function resolve() 
     {
-        $path = $this->request->getPath();
-        $method = $this->request->method();
-        $callback = $this->routes[$method][$path] ?? false;
+        $path = $this->request->getUrl();
+        $method = $this->request->getMethod();
+        $callback = $this->routeMap[$method][$path] ?? false;
 
-        if($callback === false) {
-            // Application::$app->response->setStatusCode(404);
-            // return $this->renderView("_error");
-            throw new NotFoundException();
+        if (!$callback) {
+
+            $callback = $this->getCallback();
+
+            if ($callback === false) {
+                throw new NotFoundException();
+            }
         }
 
         if(is_string($callback)) {
@@ -72,13 +127,14 @@ class Router
         if(is_array($callback)) {
             /** @var \app\core\Controller $controller */
             $controller = new $callback[0];
-            Application::$app->controller = $controller;
             $controller->action = $callback[1];
-            $callback[0] = $controller;
-
-            foreach($controller->getMiddlewares() as $middleware) {
+            Application::$app->controller = $controller;
+            $middlewares = $controller->getMiddlewares();
+            
+            foreach($middlewares as $middleware) {
                 $middleware->execute();
             }
+            $callback[0] = $controller;
         }
         return call_user_func($callback, $this->request, $this->response);
     }

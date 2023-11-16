@@ -11,13 +11,25 @@ namespace app\core;
 
 class Request
 {
+
+    private array $routeParams = [];
+
     /**
-     * Summary of getPath
+     * Summary of getMethod
+     * @return string
+     */
+    public function getMethod() 
+    {
+        return strtolower($_SERVER['REQUEST_METHOD']);
+    }
+
+    /**
+     * Summary of getUrl
      * @return mixed
      */
-    public function getPath() 
+    public function getUrl() 
     {
-        $path = $_SERVER['REQUEST_URI'] ?? '/';
+        $path = $_SERVER['REQUEST_URI'];
         $position = strpos($path, '?');
         if($position === false) {
             return $path;
@@ -26,23 +38,14 @@ class Request
         return substr($path, 0, $position);
     }
 
-    /**
-     * Summary of method
-     * @return string
-     */
-    public function method() 
-    {
-        return strtolower($_SERVER['REQUEST_METHOD']);
-    }
-
     public function isGet() 
     {
-        return $this->method() === 'get';
+        return $this->getMethod() === 'get';
     }
 
     public function isPost() 
     {
-        return $this->method() === 'post';
+        return $this->getMethod() === 'post';
     }
 
     /**
@@ -51,19 +54,29 @@ class Request
      */
     public function getBody()
     {
-        $body = [];
-        if($this->method() === 'get') {
+        $data = [];
+        if($this->isGet()) {
             foreach ($_GET as $key => $value) {
-                $body[$key] = filter_input(INPUT_GET, $key, FILTER_SANITIZE_SPECIAL_CHARS);
+                $data[$key] = filter_input(INPUT_GET, $key, FILTER_SANITIZE_SPECIAL_CHARS);
             }
         }
 
-        if($this->method() === 'post') {
+        if($this->isPost()) {
             foreach ($_POST as $key => $value) {
-                $body[$key] = filter_input(INPUT_POST, $key, FILTER_SANITIZE_SPECIAL_CHARS);
+                $data[$key] = filter_input(INPUT_POST, $key, FILTER_SANITIZE_SPECIAL_CHARS);
             }
         }
 
-        return $body;
+        return $data;
     }
+
+    public function setRouteParams($params) {
+        $this->routeParams = $params;
+        return $this;
+    }
+
+    public function getRouteParams() {
+        return $this->routeParams;
+    }
+
 }
